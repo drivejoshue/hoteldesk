@@ -7,6 +7,12 @@ use App\Http\Controllers\HotelPanel\HotelPinSettingsController;
 use App\Http\Controllers\HotelPanel\HotelQrCreationRequestController;
 use App\Http\Controllers\HotelPanel\HotelQrPointController;
 use App\Http\Controllers\HotelPanel\HotelRequestStatusController;
+
+use App\Http\Controllers\HotelPanel\HotelRequestHistoryController;
+use App\Http\Controllers\HotelPanel\HotelReportController;
+
+use App\Http\Controllers\PublicHotelAccessController;
+
 use App\Http\Controllers\PublicQrRequestController;
 use App\Http\Controllers\SysApp\SysAppAuthController;
 use App\Http\Controllers\SysApp\SysAppHotelController;
@@ -15,6 +21,8 @@ use App\Http\Controllers\SysApp\SysAppQrCreationRequestController;
 use App\Http\Controllers\SysApp\SysAppQrPointController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\SysApp\SysAppAuditLogController;
+
+
 
 Route::get('/', function () {
     return redirect()->route('sysapp.login');
@@ -32,6 +40,18 @@ Route::get('/r/{code}', [PublicQrRequestController::class, 'show'])
 Route::post('/r/{code}', [PublicQrRequestController::class, 'store'])
     ->middleware('throttle:15,1')
     ->name('public.qr.store');
+
+
+    Route::get('/', [PublicHotelAccessController::class, 'create'])
+    ->name('public.access.home');
+
+Route::get('/acceso', [PublicHotelAccessController::class, 'create'])
+    ->name('public.access.create');
+
+Route::post('/acceso', [PublicHotelAccessController::class, 'store'])
+    ->name('public.access.store');
+
+
 /*
 |--------------------------------------------------------------------------
 | Panel del hotel
@@ -131,6 +151,16 @@ Route::prefix('h/{hotel:slug}')
 
             Route::put('/settings/pin', [HotelPinSettingsController::class, 'update'])
                 ->name('settings.pin.update');
+
+
+                Route::get('/requests/history', [HotelRequestHistoryController::class, 'index'])
+    ->name('requests.history');
+
+Route::get('/reports', [HotelReportController::class, 'index'])
+    ->name('reports.index');
+
+
+
         });
     });
 
@@ -219,6 +249,10 @@ Route::prefix('sysapp')
             Route::get('/hotels/{hotel}/qr-points/print/all', [SysAppQrPointController::class, 'printAll'])
                 ->name('hotels.qr-points.print-all');
 
+
+                Route::get('/hotels/{hotel}/print-access', [SysAppHotelController::class, 'printAccess'])
+    ->name('hotels.print-access');
+
             /*
             |--------------------------------------------------------------------------
             | Solicitudes de QRs hechas por hoteles
@@ -240,6 +274,8 @@ Route::prefix('sysapp')
             | Solicitudes de reset de PIN
             |--------------------------------------------------------------------------
             */
+
+
 
             Route::get('/pin-reset-requests', [SysAppPinResetRequestController::class, 'index'])
                 ->name('pin-reset-requests.index');

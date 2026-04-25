@@ -7,7 +7,6 @@ use App\Models\Hotel;
 use App\Models\HotelRequest;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Support\Carbon;
 
 class HotelDashboardController extends Controller
 {
@@ -21,21 +20,7 @@ class HotelDashboardController extends Controller
     public function feed(Hotel $hotel): JsonResponse
     {
         $requests = $this->activeVisibleRequests($hotel)
-            ->map(function (HotelRequest $request) {
-                return [
-                    'id' => $request->id,
-                    'point_label' => $request->point_label,
-                    'type_key' => $request->type_key,
-                    'type_label' => $request->typeLabel(),
-                    'type_icon' => $request->typeIcon(),
-                    'title' => $request->title,
-                    'note' => $request->note,
-                    'status' => $request->status,
-                    'status_label' => $request->statusLabel(),
-                    'created_at' => optional($request->created_at)->format('Y-m-d H:i:s'),
-                    'created_human' => optional($request->created_at)->diffForHumans(),
-                ];
-            })
+            ->map(fn (HotelRequest $request) => $this->formatRequest($request))
             ->values();
 
         return response()->json([
@@ -45,12 +30,6 @@ class HotelDashboardController extends Controller
         ]);
     }
 
-    /**
-     * Solicitudes activas visibles para recepción.
-     *
-     * Si existen duplicadas por doble tap/refresco, solo muestra una por:
-     * hotel + punto QR + tipo + nota + estado.
-     */
     private function activeVisibleRequests(Hotel $hotel)
     {
         return $this->activeRequestsQuery($hotel)
@@ -70,11 +49,6 @@ class HotelDashboardController extends Controller
             ->values();
     }
 
-    /**
-     * Query base multi-tenant.
-     *
-     * No usamos $hotel->requests() con return type Builder porque eso devuelve HasMany.
-     */
     private function activeRequestsQuery(Hotel $hotel): Builder
     {
         return HotelRequest::query()
@@ -84,9 +58,9 @@ class HotelDashboardController extends Controller
 
     private function counts(Hotel $hotel): array
     {
-        $today = Carbon::today();
-
         $activeVisible = $this->activeVisibleRequests($hotel);
+
+        $from24h = now()->subHours(24);
 
         return [
             'pending' => $activeVisible
@@ -97,17 +71,44 @@ class HotelDashboardController extends Controller
                 ->where('status', 'in_progress')
                 ->count(),
 
+            // Operativo: últimas 24 horas, no "hoy calendario".
             'completed_today' => HotelRequest::query()
                 ->where('hotel_id', $hotel->id)
                 ->where('status', 'completed')
-                ->whereDate('completed_at', $today)
+                ->whereNotNull('completed_at')
+                ->where('completed_at', '>=', $from24h)
                 ->count(),
 
             'canceled_today' => HotelRequest::query()
                 ->where('hotel_id', $hotel->id)
                 ->where('status', 'canceled')
-                ->whereDate('canceled_at', $today)
+                ->whereNotNull('canceled_at')
+                ->where('canceled_at', '>=', $from24h)
                 ->count(),
+        ];
+    }
+
+    private function formatRequest(HotelRequest $request): array
+    {
+        $createdAt = $request->created_at;
+
+        return [
+            'id' => $request->id,
+            'point_label' => $request->point_label,
+            'type_key' => $request->type_key,
+            'type_label' => $request->typeLabel(),
+            'type_icon' => $request->typeIcon(),
+            'title' => $request->title,
+            'note' => $request->note,
+            'status' => $request->status,
+            'status_label' => $request->statusLabel(),
+
+            'created_at' => optional($createdAt)->format('Y-m-d H:i:s'),
+            'created_human' => optional($createdAt)->diffForHumans(),
+            'created_clock' => optional($createdAt)->format('H:i'),
+            'created_short' => optional($createdAt)->isToday()
+                ? optional($createdAt)->format('H:i')
+                : optional($createdAt)->format('d/m/Y H:i'),
         ];
     }
 }

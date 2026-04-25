@@ -1,2 +1,2 @@
 import './bootstrap';
-import '../css/app.css';
+import '@tabler/core/dist/js/tabler.min.js';

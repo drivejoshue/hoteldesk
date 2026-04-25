@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use SimpleSoftwareIO\QrCode\Facades\QrCode;
 
 class SysAppHotelController extends Controller
 {
@@ -78,18 +79,19 @@ class SysAppHotelController extends Controller
     {
         $data = $this->validateHotel($request, $hotel);
 
-        $hotel->fill([
-            'name' => $data['name'],
-            'slug' => $data['slug'] ?: Str::slug($data['name']),
-            'phone' => $data['phone'] ?? null,
-            'email' => $data['email'] ?? null,
-            'address' => $data['address'] ?? null,
-            'status' => $data['status'],
-            'public_requests_enabled' => $request->boolean('public_requests_enabled'),
-            'panel_enabled' => $request->boolean('panel_enabled'),
-            'taxi_enabled' => $request->boolean('taxi_enabled'),
-            'primary_color' => $data['primary_color'] ?: '#0F6CBD',
-        ]);
+      $hotel->fill([
+    'name' => $data['name'],
+    'slug' => $data['slug'] ?: Str::slug($data['name']),
+    'phone' => $data['phone'] ?? null,
+    'email' => $data['email'] ?? null,
+    'address' => $data['address'] ?? null,
+    'service_point_url' => $data['service_point_url'] ?? null,
+    'status' => $data['status'],
+    'public_requests_enabled' => $request->boolean('public_requests_enabled'),
+    'panel_enabled' => $request->boolean('panel_enabled'),
+    'taxi_enabled' => $request->boolean('taxi_enabled'),
+    'primary_color' => $data['primary_color'] ?: '#0F6CBD',
+]);
 
         if (! empty($data['pin'])) {
             $hotel->pin_hash = Hash::make($data['pin']);
@@ -133,4 +135,24 @@ class SysAppHotelController extends Controller
             'service_point_url' => ['nullable', 'url', 'max:255'],
         ]);
     }
+
+    public function printAccess(Hotel $hotel)
+{
+    $panelUrl = route('hotel.login', $hotel);
+    $accessUrl = route('public.access.create');
+    $accessCode = $hotel->slug;
+
+    $qrSvg = QrCode::format('svg')
+        ->size(240)
+        ->margin(1)
+        ->generate($panelUrl);
+
+    return view('sysapp.hotels.print-access', compact(
+        'hotel',
+        'panelUrl',
+        'accessUrl',
+        'accessCode',
+        'qrSvg'
+    ));
+}
 }

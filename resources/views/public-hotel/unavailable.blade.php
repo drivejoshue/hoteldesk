@@ -3,16 +3,16 @@
 @section('title', 'Servicio no disponible')
 
 @section('content')
-    <section class="hd-card hd-success-screen">
-        <div class="hd-success-icon" style="background: var(--hd-warning-bg); color: var(--hd-warning);">
-            <i class="ti ti-alert-triangle"></i>
-        </div>
+    <div class="text-center py-3">
+        <span class="avatar avatar-xl bg-yellow-lt text-yellow mb-3">
+            <i class="ti ti-alert-triangle" style="font-size: 34px;"></i>
+        </span>
 
-        <h1 class="hd-title">Servicio no disponible</h1>
+        <h1 class="h2 mb-2">Servicio no disponible</h1>
 
-        <p class="hd-text-muted" style="line-height: 1.5;">
-            Por el momento este servicio no está activo.
+        <p class="text-secondary mb-0">
+            Por el momento este servicio no está activo.<br>
             Contacta a recepción directamente.
         </p>
-    </section>
+    </div>
 @endsection

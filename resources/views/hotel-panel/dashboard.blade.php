@@ -30,7 +30,7 @@
                 <span class="hd-kpi-icon done">
                     <i class="ti ti-circle-check"></i>
                 </span>
-                <span class="hd-kpi-label">Resueltas</span>
+                <span class="hd-kpi-label">Resueltas 24h</span>
                 <strong class="hd-kpi-value" id="countCompleted">{{ $counts['completed_today'] }}</strong>
             </div>
 
@@ -242,7 +242,10 @@
                                 <i class="ti ${iconForType(item.type_key)}"></i>
                                 ${escapeHtml(item.point_label)} — ${escapeHtml(item.type_label)}
                             </div>
-                            <div class="hd-request-meta">${escapeHtml(item.created_human ?? '')}</div>
+                           <div class="hd-request-meta">
+    <strong>${escapeHtml(item.created_human ?? '')}</strong>
+    <span style="opacity:.75;"> · Pedido: ${escapeHtml(item.created_short ?? item.created_at ?? '')}</span>
+</div>
                         </div>
 
                         ${statusBadge(item.status, item.status_label)}
