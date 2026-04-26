@@ -1,21 +1,32 @@
 @if($showSound ?? false)
-    <div class="d-none d-md-flex align-items-center gap-2">
-        <span class="badge bg-green-lt text-green" id="soundStatus">
+    <div class="d-flex align-items-center gap-2 flex-shrink-0">
+        <span class="badge bg-green-lt text-green d-none d-lg-inline-flex align-items-center" id="soundStatus">
             <i class="ti ti-volume-off me-1"></i>
             <span>Sin sonido</span>
         </span>
 
-        <button class="btn btn-primary btn-sm" id="enableSoundBtn" type="button">
-            <i class="ti ti-volume me-1"></i>
-            <span>Activar</span>
+        <button
+            class="btn btn-primary btn-sm d-inline-flex align-items-center justify-content-center flex-shrink-0"
+            id="enableSoundBtn"
+            type="button"
+            title="Activar sonido"
+            aria-label="Activar sonido"
+        >
+            <i class="ti ti-volume me-lg-1"></i>
+            <span class="d-none d-lg-inline">Activar</span>
         </button>
     </div>
 @endif
 
-<div class="dropdown">
-    <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
-        <i class="ti ti-menu-2 me-1"></i>
-        Menú
+<div class="dropdown flex-shrink-0">
+    <button
+        class="btn btn-outline-secondary btn-sm dropdown-toggle d-inline-flex align-items-center"
+        type="button"
+        data-bs-toggle="dropdown"
+        aria-expanded="false"
+    >
+        <i class="ti ti-menu-2 me-lg-1"></i>
+        <span class="d-none d-sm-inline">Menú</span>
     </button>
 
     <div class="dropdown-menu dropdown-menu-end shadow">
