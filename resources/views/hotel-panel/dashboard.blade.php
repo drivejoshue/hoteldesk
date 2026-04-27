@@ -79,6 +79,7 @@
         let soundUnlocked = false;
         let knownIds = new Set();
         let firstLoad = true;
+        let orbanaProcessingIds = new Set();
 
         const alertSound = document.getElementById('alertSound');
         const enableSoundBtn = document.getElementById('enableSoundBtn');
@@ -204,70 +205,118 @@
         amenity: 'ti-droplet',
         luggage: 'ti-luggage',
         wakeup: 'ti-alarm',
-        taxi: 'ti-taxi',
+        taxi: 'ti-car',
         suggestion: 'ti-message-chatbot',
         other: 'ti-message-dots',
     };
 
     return icons[typeKey] ?? 'ti-message-dots';
 }
+function statusBadge(status, label) {
+    const isPending = status === 'pending';
 
-        function statusBadge(status, label) {
-            const cls = status === 'pending' ? 'hd-status-pending' : 'hd-status-progress';
-            return `<span class="hd-status-pill ${cls}">${escapeHtml(label)}</span>`;
-        }
+    const cls = isPending
+        ? 'bg-yellow-lt text-yellow'
+        : 'bg-blue-lt text-blue';
 
-        function renderRequestCard(item, isNew) {
-            const note = item.note
-                ? `<div class="hd-note">${escapeHtml(item.note)}</div>`
-                : `<div class="hd-note">Sin nota adicional.</div>`;
+    const icon = isPending
+        ? 'ti-bell-ringing'
+        : 'ti-clock-hour-3';
 
-            const takeButton = item.status === 'pending'
-                ? `<button class="hd-btn hd-btn-primary" onclick="updateStatus(${item.id}, 'take')">
-                        <i class="ti ti-hand-click"></i> Tomar
-                   </button>`
-                : '';
+    return `
+        <span class="badge ${cls} rounded-pill d-inline-flex align-items-center gap-1">
+            <i class="ti ${icon}" style="font-size: 14px; line-height: 1;"></i>
+            <span>${escapeHtml(label)}</span>
+        </span>
+    `;
+}
 
-            const orbanaButton = item.type_key === 'taxi' && hotelServicePointUrl
-                ? `<a class="hd-btn hd-btn-primary" href="${escapeHtml(hotelServicePointUrl)}" target="_blank" rel="noopener">
-                        <i class="ti ti-taxi"></i> Pedir por Orbana
-                   </a>`
-                : '';
+     function renderRequestCard(item, isNew) {
+    const note = item.note
+        ? `<div class="text-muted small mt-2">${escapeHtml(item.note)}</div>`
+        : `<div class="text-muted small mt-2">Sin nota adicional.</div>`;
 
-            return `
-                <article class="hd-request-card ${isNew ? 'is-new' : ''}">
-                    <div class="hd-request-head">
-                        <div>
-                            <div class="hd-request-title">
+    const isOrbanaProcessing = orbanaProcessingIds.has(item.id);
+
+    const takeButton = item.status === 'pending'
+        ? `<button class="btn btn-outline-primary btn-sm" onclick="updateStatus(${item.id}, 'take')">
+                <i class="ti ti-hand-click me-1"></i>
+                Tomar
+           </button>`
+        : '';
+
+    const orbanaButton = item.type_key === 'taxi' && hotelServicePointUrl && item.status === 'pending'
+        ? `<button
+                class="btn btn-primary btn-sm"
+                type="button"
+                id="orbanaBtn${item.id}"
+                onclick="sendToOrbana(${item.id})"
+                ${isOrbanaProcessing ? 'disabled' : ''}
+           >
+                <i class="ti ${isOrbanaProcessing ? 'ti-loader-2' : 'ti-taxi'} me-1"></i>
+                ${isOrbanaProcessing ? 'Enviando...' : 'Pedir por Orbana'}
+           </button>`
+        : '';
+
+    const orbanaProgressBadge = item.type_key === 'taxi' && item.status === 'in_progress'
+        ? `<span class="badge bg-blue-lt text-blue rounded-pill d-inline-flex align-items-center gap-1">
+                <i class="ti ti-progress-check"></i>
+                En proceso
+           </span>`
+        : '';
+
+    return `
+        <article class="card hd-request-card ${isNew ? 'is-new' : ''}">
+            <div class="card-body">
+                <div class="d-flex align-items-start justify-content-between gap-3">
+                    <div class="min-w-0">
+                        <div class="d-flex align-items-center gap-2 fw-bold text-truncate">
+                            <span class="avatar avatar-sm bg-primary-lt text-primary">
                                 <i class="ti ${iconForType(item.type_key)}"></i>
+                            </span>
+
+                            <span class="text-truncate">
                                 ${escapeHtml(item.point_label)} — ${escapeHtml(item.type_label)}
-                            </div>
-                           <div class="hd-request-meta">
-    <strong>${escapeHtml(item.created_human ?? '')}</strong>
-    <span style="opacity:.75;"> · Pedido: ${escapeHtml(item.created_short ?? item.created_at ?? '')}</span>
-</div>
+                            </span>
                         </div>
 
-                        ${statusBadge(item.status, item.status_label)}
+                        <div class="text-muted small mt-1">
+                            <strong>${escapeHtml(item.created_human ?? '')}</strong>
+                            <span class="opacity-75"> · Pedido: ${escapeHtml(item.created_short ?? item.created_at ?? '')}</span>
+                        </div>
                     </div>
 
-                    ${note}
+                    <div class="flex-shrink-0">
+                        ${statusBadge(item.status, item.status_label)}
+                    </div>
+                </div>
 
-                    <div class="hd-card-actions">
+                ${note}
+
+                <div class="d-flex align-items-center justify-content-between gap-2 flex-wrap mt-3">
+                    <div class="d-flex align-items-center gap-2 flex-wrap">
+                        ${orbanaProgressBadge}
+                    </div>
+
+                    <div class="d-flex align-items-center gap-2 flex-wrap justify-content-end">
                         ${orbanaButton}
                         ${takeButton}
 
-                        <button class="hd-btn hd-btn-success" onclick="updateStatus(${item.id}, 'complete')">
-                            <i class="ti ti-check"></i> Resolver
+                        <button class="btn btn-success btn-sm" onclick="updateStatus(${item.id}, 'complete')">
+                            <i class="ti ti-check me-1"></i>
+                            Resolver
                         </button>
 
-                        <button class="hd-btn hd-btn-danger" onclick="updateStatus(${item.id}, 'cancel')">
-                            <i class="ti ti-x"></i> Cancelar
+                        <button class="btn btn-outline-danger btn-sm" onclick="updateStatus(${item.id}, 'cancel')">
+                            <i class="ti ti-x me-1"></i>
+                            Cancelar
                         </button>
                     </div>
-                </article>
-            `;
-        }
+                </div>
+            </div>
+        </article>
+    `;
+}
 
         async function playAlertIfAllowed() {
             if (!soundEnabled || !soundUnlocked || !alertSound) {
@@ -298,6 +347,12 @@
                 }
 
                 const data = await response.json();
+
+                data.requests.forEach(item => {
+    if (item.status !== 'pending') {
+        orbanaProcessingIds.delete(item.id);
+    }
+});
 
                 document.getElementById('countPending').textContent = data.counts.pending;
                 document.getElementById('countProgress').textContent = data.counts.in_progress;
@@ -345,7 +400,61 @@
                 console.error(e);
             }
         }
+async function sendToOrbana(id) {
+    if (!hotelServicePointUrl || orbanaProcessingIds.has(id)) {
+        return;
+    }
 
+    orbanaProcessingIds.add(id);
+
+    const btn = document.getElementById(`orbanaBtn${id}`);
+
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="ti ti-loader-2 me-1"></i> Enviando...';
+    }
+
+    const orbanaWindow = window.open(hotelServicePointUrl, '_blank', 'noopener');
+
+    try {
+        const response = await fetch(`${takeBaseUrl}/${id}/take`, {
+            method: 'PATCH',
+            headers: {
+                'X-CSRF-TOKEN': csrf,
+                'Accept': 'application/json',
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({}),
+        });
+
+        const data = await response.json();
+
+        if (!response.ok || !data.ok) {
+            orbanaProcessingIds.delete(id);
+
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="ti ti-taxi me-1"></i> Pedir por Orbana';
+            }
+
+            alert(data.message || 'No se pudo poner la solicitud en proceso.');
+
+            return;
+        }
+
+        await loadFeed();
+    } catch (e) {
+        orbanaProcessingIds.delete(id);
+
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="ti ti-taxi me-1"></i> Pedir por Orbana';
+        }
+
+        console.error(e);
+        alert('Error de conexión al enviar la solicitud a proceso.');
+    }
+}
         async function updateStatus(id, action) {
             const url = `${takeBaseUrl}/${id}/${action}`;
 
