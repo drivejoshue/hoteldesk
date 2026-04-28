@@ -56,9 +56,11 @@ class SysAppHotelController extends Controller
     'primary_color' => $data['primary_color'] ?: '#0F6CBD',
 ]);
 
-        $hotel->pin_hash = Hash::make($data['pin']);
+      $hotel->pin_hash = Hash::make($data['pin']);
+$hotel->admin_pin_hash = Hash::make($data['admin_pin'] ?: $data['pin']);
+$hotel->admin_pin_changed_at = now();
 
-        $hotel->save();
+$hotel->save();
 
         if ($request->hasFile('logo')) {
             $hotel->logo_path = $request->file('logo')->store('hotels/' . $hotel->id, 'public');
@@ -96,6 +98,12 @@ class SysAppHotelController extends Controller
         if (! empty($data['pin'])) {
             $hotel->pin_hash = Hash::make($data['pin']);
         }
+        if (! empty($data['admin_pin'])) {
+    $hotel->admin_pin_hash = Hash::make($data['admin_pin']);
+    $hotel->admin_pin_changed_at = now();
+    $hotel->admin_failed_attempts = 0;
+    $hotel->admin_locked_until = null;
+}
 
         if ($request->hasFile('logo')) {
             if ($hotel->logo_path) {
@@ -126,6 +134,7 @@ class SysAppHotelController extends Controller
                 Rule::unique('hotels', 'slug')->ignore($hotelId),
             ],
             'pin' => [$hotel ? 'nullable' : 'required', 'string', 'min:4', 'max:12'],
+            'admin_pin' => ['nullable', 'string', 'min:4', 'max:12'],
             'logo' => ['nullable', 'image', 'max:2048'],
             'phone' => ['nullable', 'string', 'max:40'],
             'email' => ['nullable', 'email', 'max:150'],

@@ -30,53 +30,45 @@
         </div>
     </div>
 
-    <script>
-        const exitUrl = 'https://www.google.com/';
+   <script>
+    const exitUrl = 'https://www.google.com.mx/';
 
-        /*
-         * Evita que el botón atrás regrese cómodamente al formulario.
-         * El huésped debe volver a escanear el QR para crear otra solicitud.
-         */
-        try {
-            window.history.replaceState({ sent: true }, '', window.location.href);
-            window.history.pushState({ blocked: true }, '', window.location.href);
+    /*
+     * Evita que el botón atrás regrese cómodamente al formulario.
+     * Si el huésped regresa, lo sacamos fuera de HotelDesk.
+     */
+    try {
+        window.history.replaceState({ sent: true }, '', window.location.href);
+        window.history.pushState({ blocked: true }, '', window.location.href);
 
-            window.addEventListener('popstate', () => {
-                window.location.replace(exitUrl);
-            });
-        } catch (e) {
-            console.warn('No se pudo controlar el historial del navegador.', e);
-        }
-
-        function exitRequestPage() {
-            const closeHint = document.getElementById('closeHint');
-
-            if (closeHint) {
-                closeHint.style.display = 'block';
-            }
-
-            /*
-             * Algunos navegadores cierran la pestaña si fue abierta desde otra ventana.
-             * Si no se puede cerrar, redirige fuera de HotelDesk.
-             */
-            try {
-                window.open('', '_self');
-                window.close();
-            } catch (e) {
-                console.warn('El navegador no permitió cerrar la ventana.', e);
-            }
-
-            setTimeout(() => {
-                window.location.replace(exitUrl);
-            }, 350);
-        }
-
-        /*
-         * Opcional: salida automática después de unos segundos.
-         * Si no quieres auto-salida, borra este bloque.
-         */
-        setTimeout(() => {
+        window.addEventListener('popstate', () => {
             window.location.replace(exitUrl);
-        }, 12000);
-    </script>
+        });
+    } catch (e) {
+        console.warn('No se pudo controlar el historial del navegador.', e);
+    }
+
+    function exitRequestPage() {
+        const closeHint = document.getElementById('closeHint');
+
+        if (closeHint) {
+            closeHint.style.display = 'block';
+        }
+
+        /*
+         * No usamos window.close(), porque muchos navegadores lo bloquean
+         * si la pestaña no fue abierta por JavaScript.
+         * Salimos directo a Google.
+         */
+        window.location.replace(exitUrl);
+    }
+
+    /*
+     * Salida automática después de unos segundos.
+     * Si no quieres salida automática, elimina este bloque.
+     */
+    setTimeout(() => {
+        window.location.replace(exitUrl);
+    }, 12000);
+</script>
 @endsection

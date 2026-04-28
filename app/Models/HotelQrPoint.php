@@ -16,15 +16,21 @@ class HotelQrPoint extends Model
         'type',
         'floor',
         'public_code',
+        'previous_public_code',
+        'regenerated_at',
         'mode',
         'fixed_request_type',
         'allowed_request_types',
         'active',
+        'invalidated_at',
+        'invalidated_reason',
     ];
 
     protected $casts = [
         'allowed_request_types' => 'array',
         'active' => 'boolean',
+        'regenerated_at' => 'datetime',
+        'invalidated_at' => 'datetime',
     ];
 
     public function hotel(): BelongsTo

@@ -236,7 +236,7 @@
         <div class="hd-access-footer-inner">
             <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-2">
                 <div>
-                    <strong>HotelDesk Lite by Orbana</strong>
+                    <strong>HotelDesk Lite by Orbana Mobility</strong>
                     · Tecnología práctica para recepción, atención en sitio y operación hotelera.
                 </div>
 

@@ -18,6 +18,10 @@
     </div>
 @endif
 
+@php
+    $isHotelAdmin = session()->get($hotel->adminSessionKey());
+@endphp
+
 <div class="dropdown flex-shrink-0">
     <button
         class="btn btn-outline-secondary btn-sm dropdown-toggle d-inline-flex align-items-center"
@@ -36,7 +40,7 @@
 
         <a class="dropdown-item" href="{{ route('hotel.dashboard', $hotel) }}">
             <i class="ti ti-layout-dashboard me-2"></i>
-            Inicio
+            Recepción
         </a>
 
         <a class="dropdown-item" href="{{ route('hotel.requests.history', $hotel) }}">
@@ -44,25 +48,50 @@
             Historial
         </a>
 
-        <a class="dropdown-item" href="{{ route('hotel.reports.index', $hotel) }}">
-            <i class="ti ti-chart-bar me-2"></i>
-            Reportes
-        </a>
-
-        <a class="dropdown-item" href="{{ route('hotel.qr-points.index', $hotel) }}">
-            <i class="ti ti-qrcode me-2"></i>
-            Mis QRs
-        </a>
-
-        <a class="dropdown-item" href="{{ route('hotel.qr-requests.index', $hotel) }}">
-            <i class="ti ti-plus me-2"></i>
-            Solicitar QR
-        </a>
-
         <a class="dropdown-item" href="{{ route('hotel.settings.pin.edit', $hotel) }}">
             <i class="ti ti-key me-2"></i>
-            Cambiar PIN
+            Cambiar PIN recepción
         </a>
+
+        <div class="dropdown-divider"></div>
+
+        <div class="dropdown-header">
+            Administración
+        </div>
+
+        @if($isHotelAdmin)
+            <a class="dropdown-item" href="{{ route('hotel.reports.index', $hotel) }}">
+                <i class="ti ti-chart-bar me-2"></i>
+                Reportes
+            </a>
+
+            <a class="dropdown-item" href="{{ route('hotel.qr-points.index', $hotel) }}">
+                <i class="ti ti-qrcode me-2"></i>
+                Mis QRs
+            </a>
+
+            <a class="dropdown-item" href="{{ route('hotel.qr-requests.index', $hotel) }}">
+                <i class="ti ti-plus me-2"></i>
+                Solicitar QR
+            </a>
+            <a class="dropdown-item" href="{{ route('hotel.admin-pin.settings.edit', $hotel) }}">
+    <i class="ti ti-shield-lock me-2"></i>
+    Cambiar PIN admin
+</a>
+
+            <form method="POST" action="{{ route('hotel.admin-pin.logout', $hotel) }}">
+                @csrf
+                <button class="dropdown-item text-secondary" type="submit">
+                    <i class="ti ti-shield-off me-2"></i>
+                    Salir de modo admin
+                </button>
+            </form>
+        @else
+            <a class="dropdown-item" href="{{ route('hotel.admin-pin.show', $hotel) }}">
+                <i class="ti ti-shield-lock me-2"></i>
+                Entrar como Admin
+            </a>
+        @endif
 
         <div class="dropdown-divider"></div>
 

@@ -73,25 +73,60 @@
                                 </div>
                             </div>
 
-                            <div class="col-12 col-md-5">
-                                <label class="form-label">
-                                    PIN recepción
-                                    @if($hotel->exists)
-                                        <span class="text-secondary">(opcional)</span>
-                                    @else
-                                        <span class="text-danger">*</span>
-                                    @endif
-                                </label>
+                           <div class="col-12 col-md-4">
+    <label class="form-label">
+        PIN recepción
+        @if($hotel->exists)
+            <span class="text-secondary">(opcional)</span>
+        @else
+            <span class="text-danger">*</span>
+        @endif
+    </label>
 
-                                <input
-                                    class="form-control"
-                                    name="pin"
-                                    type="text"
-                                    inputmode="numeric"
-                                    value="{{ old('pin') }}"
-                                    {{ $hotel->exists ? '' : 'required' }}
-                                    placeholder="{{ $hotel->exists ? 'Dejar vacío para no cambiar' : 'Ej. 2468' }}">
-                            </div>
+    <input
+        class="form-control @error('pin') is-invalid @enderror"
+        name="pin"
+        type="text"
+        inputmode="numeric"
+        value="{{ old('pin') }}"
+        {{ $hotel->exists ? '' : 'required' }}
+        placeholder="{{ $hotel->exists ? 'No cambiar' : 'Ej. 2468' }}">
+
+    <div class="form-hint">
+        Uso diario de recepción.
+    </div>
+
+    @error('pin')
+        <div class="invalid-feedback">
+            {{ $message }}
+        </div>
+    @enderror
+</div>
+
+<div class="col-12 col-md-4">
+    <label class="form-label">
+        PIN admin
+        <span class="text-secondary">(opcional)</span>
+    </label>
+
+    <input
+        class="form-control @error('admin_pin') is-invalid @enderror"
+        name="admin_pin"
+        type="text"
+        inputmode="numeric"
+        value="{{ old('admin_pin') }}"
+        placeholder="{{ $hotel->exists ? 'No cambiar' : 'Si vacío, usa PIN recepción' }}">
+
+    <div class="form-hint">
+        Protege reportes, QRs y configuración avanzada.
+    </div>
+
+    @error('admin_pin')
+        <div class="invalid-feedback">
+            {{ $message }}
+        </div>
+    @enderror
+</div>
 
                             <div class="col-12 col-md-4">
                                 <label class="form-label">

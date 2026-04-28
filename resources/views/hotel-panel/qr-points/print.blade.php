@@ -287,7 +287,7 @@
     </div>
 
     <div class="qr-print-tagline">
-        HotelDesk Lite · Powered by SysApp
+        HotelDesk Lite · Powered by Orbana
     </div>
 
     <div class="qr-print-url">
