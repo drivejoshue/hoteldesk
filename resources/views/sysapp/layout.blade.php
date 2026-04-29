@@ -77,6 +77,18 @@
                     </div>
                 @endif
 
+                @if(session('info'))
+    <div class="alert alert-info" role="alert">
+        {{ session('info') }}
+    </div>
+@endif
+
+@if(session('warning'))
+    <div class="alert alert-warning" role="alert">
+        {{ session('warning') }}
+    </div>
+@endif
+
                 @if($errors->any())
                     <div class="alert alert-danger" role="alert">
                         @foreach($errors->all() as $error)

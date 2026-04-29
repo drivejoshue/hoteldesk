@@ -19,14 +19,51 @@
             'limited' => 'Menú limitado',
             'direct' => 'Solicitud directa',
         ];
+
+        $typeIcons = [
+            'room' => 'ti-bed',
+            'lobby' => 'ti-building',
+            'area' => 'ti-map-pin',
+            'restaurant' => 'ti-tools-kitchen-2',
+            'parking' => 'ti-parking',
+            'reception' => 'ti-desk',
+            'other' => 'ti-map-2',
+        ];
     @endphp
+
+    <style>
+        .sys-qr-row-inactive {
+            background: #f8fafc;
+        }
+
+        .sys-qr-code {
+            max-width: 210px;
+            white-space: normal;
+            word-break: break-all;
+        }
+
+        .sys-actions {
+            display: flex;
+            flex-wrap: nowrap;
+            gap: 6px;
+        }
+
+        .sys-actions form {
+            margin: 0;
+        }
+
+        .sys-qr-note {
+            font-size: 12px;
+            color: #64748b;
+        }
+    </style>
 
     <div class="page-header d-print-none mb-3">
         <div class="row align-items-center">
             <div class="col">
                 <h2 class="page-title mb-1">Puntos QR</h2>
                 <div class="text-secondary">
-                    {{ $hotel->name }} · Habitaciones y áreas comunes.
+                    {{ $hotel->name }} · Administración central de habitaciones y áreas comunes.
                 </div>
             </div>
 
@@ -44,12 +81,19 @@
 
                     <a class="btn btn-success" href="{{ route('sysapp.hotels.qr-points.print-all', $hotel) }}" target="_blank">
                         <i class="ti ti-printer me-1"></i>
-                        Imprimir todos
+                        Imprimir activos
                     </a>
                 </div>
             </div>
         </div>
     </div>
+
+    @if(session('info'))
+        <div class="alert alert-info">
+            <i class="ti ti-info-circle me-1"></i>
+            {{ session('info') }}
+        </div>
+    @endif
 
     <div class="row row-cards">
         <div class="col-12 col-xl-6">
@@ -176,7 +220,12 @@
 
     <div class="card mt-3">
         <div class="card-header">
-            <h3 class="card-title">Puntos configurados</h3>
+            <div>
+                <h3 class="card-title mb-0">Puntos configurados</h3>
+                <div class="text-secondary small">
+                    Regenera el código cuando un QR se pierda, se copie o se use indebidamente.
+                </div>
+            </div>
         </div>
 
         <div class="table-responsive">
@@ -189,16 +238,24 @@
                     <th>Modo</th>
                     <th>Código</th>
                     <th>Estado</th>
-                    <th>URL pública</th>
+                    <th>Historial</th>
                     <th class="w-1">Acciones</th>
                 </tr>
                 </thead>
 
                 <tbody>
                 @forelse($points as $point)
-                    <tr>
+                    <tr class="{{ $point->active ? '' : 'sys-qr-row-inactive' }}">
                         <td>
-                            <strong>{{ $point->label }}</strong>
+                            <div class="fw-bold">
+                                <i class="ti {{ $typeIcons[$point->type] ?? 'ti-qrcode' }} me-1"></i>
+                                {{ $point->label }}
+                            </div>
+                            <div class="sys-qr-note">
+                                <a href="{{ route('public.qr.show', $point->public_code) }}" target="_blank">
+                                    Abrir URL pública
+                                </a>
+                            </div>
                         </td>
 
                         <td>{{ $typeLabels[$point->type] ?? $point->type }}</td>
@@ -207,18 +264,25 @@
 
                         <td>{{ $modeLabels[$point->mode] ?? $point->mode }}</td>
 
-                        <td>
+                        <td class="sys-qr-code">
                             <code>{{ $point->public_code }}</code>
+
+                            @if($point->previous_public_code)
+                                <div class="sys-qr-note mt-1">
+                                    Anterior:
+                                    <code>{{ $point->previous_public_code }}</code>
+                                </div>
+                            @endif
                         </td>
 
                         <td>
                             @if($point->active)
-                                <span class="badge bg-green-lt text-green">
+                                <span class="badge bg-green-lt text-green rounded-pill">
                                     <i class="ti ti-check me-1"></i>
                                     Activo
                                 </span>
                             @else
-                                <span class="badge bg-secondary-lt text-secondary">
+                                <span class="badge bg-red-lt text-red rounded-pill">
                                     <i class="ti ti-ban me-1"></i>
                                     Inactivo
                                 </span>
@@ -226,18 +290,74 @@
                         </td>
 
                         <td>
-                            <a href="{{ route('public.qr.show', $point->public_code) }}" target="_blank">
-                                Abrir QR
-                            </a>
+                            @if($point->regenerated_at)
+                                <div class="sys-qr-note">
+                                    Regenerado:
+                                    {{ $point->regenerated_at->format('d/m/Y H:i') }}
+                                </div>
+                            @endif
+
+                            @if($point->invalidated_at)
+                                <div class="sys-qr-note text-danger">
+                                    Invalidado:
+                                    {{ $point->invalidated_at->format('d/m/Y H:i') }}
+                                </div>
+                            @endif
+
+                            @if($point->invalidated_reason)
+                                <div class="sys-qr-note">
+                                    {{ $point->invalidated_reason }}
+                                </div>
+                            @endif
+
+                            @if(! $point->regenerated_at && ! $point->invalidated_at)
+                                <span class="text-secondary">—</span>
+                            @endif
                         </td>
 
                         <td>
-                            <div class="btn-list flex-nowrap">
-                                <a class="btn btn-success btn-sm"
-                                   target="_blank"
-                                   href="{{ route('sysapp.hotels.qr-points.print', [$hotel, $point]) }}">
-                                    Imprimir
-                                </a>
+                            <div class="sys-actions">
+                                @if($point->active)
+                                    <a class="btn btn-success btn-sm"
+                                       target="_blank"
+                                       href="{{ route('sysapp.hotels.qr-points.print', [$hotel, $point]) }}">
+                                        <i class="ti ti-printer me-1"></i>
+                                        Imprimir
+                                    </a>
+
+                                    <form id="invalidateQrForm{{ $point->id }}"
+                                          method="POST"
+                                          action="{{ route('sysapp.hotels.qr-points.invalidate', [$hotel, $point]) }}">
+                                        @csrf
+                                        @method('PATCH')
+                                        <input type="hidden" name="reason" id="invalidateReason{{ $point->id }}">
+
+                                        <button class="btn btn-outline-danger btn-sm js-invalidate-qr"
+                                                type="button"
+                                                data-point-id="{{ $point->id }}"
+                                                data-label="{{ $point->label }}">
+                                            <i class="ti ti-ban me-1"></i>
+                                            Invalidar
+                                        </button>
+                                    </form>
+                                @endif
+
+                                <form id="regenerateQrForm{{ $point->id }}"
+                                      method="POST"
+                                      action="{{ route('sysapp.hotels.qr-points.regenerate', [$hotel, $point]) }}">
+                                    @csrf
+                                    @method('PATCH')
+                                    <input type="hidden" name="reason" id="regenerateReason{{ $point->id }}">
+
+                                    <button class="btn btn-warning btn-sm js-regenerate-qr"
+                                            type="button"
+                                            data-point-id="{{ $point->id }}"
+                                            data-label="{{ $point->label }}"
+                                            data-active="{{ $point->active ? '1' : '0' }}">
+                                        <i class="ti ti-refresh me-1"></i>
+                                        {{ $point->active ? 'Regenerar' : 'Generar nuevo' }}
+                                    </button>
+                                </form>
 
                                 <form method="POST" action="{{ route('sysapp.hotels.qr-points.toggle', [$hotel, $point]) }}">
                                     @csrf
@@ -277,22 +397,152 @@
     </div>
 
     <script>
-        (() => {
+        document.addEventListener('DOMContentLoaded', () => {
             const modeSelect = document.getElementById('modeSelect');
             const directTypeBox = document.getElementById('directTypeBox');
             const limitedTypesBox = document.getElementById('limitedTypesBox');
 
-            if (!modeSelect || !directTypeBox || !limitedTypesBox) {
+            if (modeSelect && directTypeBox && limitedTypesBox) {
+                function syncMode() {
+                    directTypeBox.classList.toggle('d-none', modeSelect.value !== 'direct');
+                    limitedTypesBox.classList.toggle('d-none', modeSelect.value !== 'limited');
+                }
+
+                modeSelect.addEventListener('change', syncMode);
+                syncMode();
+            }
+
+            document.querySelectorAll('.js-invalidate-qr').forEach((button) => {
+                button.addEventListener('click', async () => {
+                    await confirmInvalidateQr(
+                        button.dataset.pointId,
+                        button.dataset.label || 'este QR'
+                    );
+                });
+            });
+
+            document.querySelectorAll('.js-regenerate-qr').forEach((button) => {
+                button.addEventListener('click', async () => {
+                    await confirmRegenerateQr(
+                        button.dataset.pointId,
+                        button.dataset.label || 'este QR',
+                        button.dataset.active === '1'
+                    );
+                });
+            });
+        });
+
+        async function confirmInvalidateQr(pointId, label) {
+            const form = document.getElementById(`invalidateQrForm${pointId}`);
+            const reasonInput = document.getElementById(`invalidateReason${pointId}`);
+
+            if (!form || !reasonInput) {
+                console.error('No se encontró el formulario para invalidar QR.', pointId);
                 return;
             }
 
-            function syncMode() {
-                directTypeBox.classList.toggle('d-none', modeSelect.value !== 'direct');
-                limitedTypesBox.classList.toggle('d-none', modeSelect.value !== 'limited');
+            if (!window.Swal) {
+                if (confirm(`¿Invalidar el QR de ${label}?`)) {
+                    form.submit();
+                }
+
+                return;
             }
 
-            modeSelect.addEventListener('change', syncMode);
-            syncMode();
-        })();
+            const result = await window.Swal.fire({
+                title: '¿Invalidar QR?',
+                html: `
+                    <div class="text-start">
+                        <p>
+                            El código QR de <strong>${escapeHtml(label)}</strong> dejará de aceptar solicitudes.
+                        </p>
+                        <p class="text-secondary mb-0">
+                            Úsalo cuando el QR se perdió, fue retirado o no debe seguir funcionando.
+                        </p>
+                    </div>
+                `,
+                input: 'text',
+                inputLabel: 'Motivo opcional',
+                inputPlaceholder: 'Ej. QR perdido, dañado o uso indebido',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: 'Sí, invalidar',
+                cancelButtonText: 'Cancelar',
+                confirmButtonColor: '#dc2626',
+                cancelButtonColor: '#6c757d',
+                reverseButtons: true,
+                focusCancel: true,
+            });
+
+            if (!result.isConfirmed) {
+                return;
+            }
+
+            reasonInput.value = result.value || '';
+            form.submit();
+        }
+
+        async function confirmRegenerateQr(pointId, label, isActive) {
+            const form = document.getElementById(`regenerateQrForm${pointId}`);
+            const reasonInput = document.getElementById(`regenerateReason${pointId}`);
+
+            if (!form || !reasonInput) {
+                console.error('No se encontró el formulario para regenerar QR.', pointId);
+                return;
+            }
+
+            const message = isActive
+                ? 'Se generará un nuevo código. El QR impreso anteriormente dejará de funcionar.'
+                : 'Se generará un nuevo código activo para este punto.';
+
+            if (!window.Swal) {
+                if (confirm(`¿Regenerar el QR de ${label}?`)) {
+                    form.submit();
+                }
+
+                return;
+            }
+
+            const result = await window.Swal.fire({
+                title: isActive ? '¿Regenerar QR?' : '¿Generar nuevo QR?',
+                html: `
+                    <div class="text-start">
+                        <p>
+                            Punto: <strong>${escapeHtml(label)}</strong>
+                        </p>
+                        <p class="text-secondary mb-0">
+                            ${message}
+                        </p>
+                    </div>
+                `,
+                input: 'text',
+                inputLabel: 'Motivo opcional',
+                inputPlaceholder: 'Ej. QR perdido, reimpresión segura o cambio preventivo',
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonText: isActive ? 'Sí, regenerar' : 'Sí, generar',
+                cancelButtonText: 'Cancelar',
+                confirmButtonColor: '#f59e0b',
+                cancelButtonColor: '#6c757d',
+                reverseButtons: true,
+                focusCancel: true,
+            });
+
+            if (!result.isConfirmed) {
+                return;
+            }
+
+            reasonInput.value = result.value || '';
+            form.submit();
+        }
+
+        function escapeHtml(value) {
+            return String(value ?? '')
+                .replaceAll('&', '&amp;')
+                .replaceAll('<', '&lt;')
+                .replaceAll('>', '&gt;')
+                .replaceAll('"', '&quot;')
+                .replaceAll("'", '&#039;');
+        }
     </script>
 @endsection

@@ -156,7 +156,7 @@ Route::prefix('h/{hotel:slug}')
                 Route::patch('/qr-points/{point}/regenerate', [HotelQrPointController::class, 'regenerate'])
                     ->name('qr-points.regenerate');
 
-    
+
 
                 Route::get('/qr-requests', [HotelQrCreationRequestController::class, 'index'])
                     ->name('qr-requests.index');
@@ -267,6 +267,12 @@ Route::prefix('sysapp')
             Route::get('/hotels/{hotel}/qr-points/print/all', [SysAppQrPointController::class, 'printAll'])
                 ->name('hotels.qr-points.print-all');
 
+
+Route::patch('/hotels/{hotel}/qr-points/{point}/invalidate', [SysAppQrPointController::class, 'invalidate'])
+    ->name('hotels.qr-points.invalidate');
+
+Route::patch('/hotels/{hotel}/qr-points/{point}/regenerate', [SysAppQrPointController::class, 'regenerate'])
+    ->name('hotels.qr-points.regenerate');
             /*
             |--------------------------------------------------------------------------
             | Solicitudes de QRs hechas por hoteles
