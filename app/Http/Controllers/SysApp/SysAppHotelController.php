@@ -13,15 +13,48 @@ use SimpleSoftwareIO\QrCode\Facades\QrCode;
 
 class SysAppHotelController extends Controller
 {
-    public function index()
-    {
-        $hotels = Hotel::query()
-            ->withCount(['qrPoints', 'requests'])
-            ->latest()
-            ->paginate(15);
+    public function index(Request $request)
+{
+    $search = trim((string) $request->query('q', ''));
+    $status = (string) $request->query('status', '');
 
-        return view('sysapp.hotels.index', compact('hotels'));
-    }
+    $baseQuery = Hotel::query();
+
+    $summary = [
+        'total' => (clone $baseQuery)->count(),
+        'active' => (clone $baseQuery)->where('status', 'active')->count(),
+        'paused' => (clone $baseQuery)->where('status', 'paused')->count(),
+        'disabled' => (clone $baseQuery)->where('status', 'disabled')->count(),
+        'draft' => (clone $baseQuery)->where('status', 'draft')->count(),
+        'qr_total' => \App\Models\HotelQrPoint::query()->count(),
+        'requests_total' => \App\Models\HotelRequest::query()->count(),
+    ];
+
+    $hotels = Hotel::query()
+        ->withCount(['qrPoints', 'requests'])
+        ->when($search !== '', function ($query) use ($search) {
+            $query->where(function ($subQuery) use ($search) {
+                $subQuery
+                    ->where('name', 'like', "%{$search}%")
+                    ->orWhere('slug', 'like', "%{$search}%")
+                    ->orWhere('email', 'like', "%{$search}%")
+                    ->orWhere('phone', 'like', "%{$search}%");
+            });
+        })
+        ->when($status !== '', function ($query) use ($status) {
+            $query->where('status', $status);
+        })
+        ->latest()
+        ->paginate(15)
+        ->withQueryString();
+
+    return view('sysapp.hotels.index', compact(
+        'hotels',
+        'summary',
+        'search',
+        'status'
+    ));
+}
 
     public function create()
     {
