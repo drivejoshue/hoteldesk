@@ -18,6 +18,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'hotel.pin' => EnsureHotelPinAuthenticated::class,
             'hotel.admin.pin' => EnsureHotelAdminPinAuthenticated::class,
             'sysapp.auth' => EnsureSysAppAdminAuthenticated::class,
+             'hotel.license' => \App\Http\Middleware\EnsureHotelLicenseIsActive::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

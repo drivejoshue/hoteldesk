@@ -11,6 +11,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use SimpleSoftwareIO\QrCode\Facades\QrCode;
+use Illuminate\Validation\ValidationException;
 
 class SysAppQrPointController extends Controller
 {
@@ -27,104 +28,145 @@ class SysAppQrPointController extends Controller
         return view('sysapp.hotels.qr-points', compact('hotel', 'points', 'requestTypes'));
     }
 
-    public function store(Request $request, Hotel $hotel): RedirectResponse
-    {
-        $data = $request->validate([
-            'label' => ['required', 'string', 'max:120'],
-            'type' => ['required', Rule::in(['room', 'lobby', 'area', 'restaurant', 'parking', 'reception', 'other'])],
-            'floor' => ['nullable', 'string', 'max:30'],
-            'mode' => ['required', Rule::in(['menu', 'limited', 'direct'])],
-            'fixed_request_type' => ['nullable', 'string', Rule::in(array_keys(config('hoteldesk.request_types')))],
-            'allowed_request_types' => ['nullable', 'array'],
-            'allowed_request_types.*' => ['string', Rule::in(array_keys(config('hoteldesk.request_types')))],
-        ]);
+   public function store(Request $request, Hotel $hotel): RedirectResponse
+{
+    $payload = $this->validateQrPointPayload($request);
 
-        $mode = $data['mode'];
+    $point = HotelQrPoint::create(array_merge($payload, [
+        'hotel_id' => $hotel->id,
+        'public_code' => $this->makeUniquePublicCode($hotel),
+        'active' => true,
+    ]));
+
+    $this->audit(
+        request: $request,
+        hotel: $hotel,
+        action: 'sysapp_qr_created',
+        description: 'QR creado desde SysApp.',
+        meta: [
+            'qr_point_id' => $point->id,
+            'label' => $point->label,
+            'public_code' => $point->public_code,
+            'mode' => $point->mode,
+        ]
+    );
+
+    return back()->with('success', 'Punto QR creado correctamente.');
+}
+
+    public function generateRooms(Request $request, Hotel $hotel): RedirectResponse
+{
+    $requestTypes = array_keys(config('hoteldesk.request_types'));
+
+    $data = $request->validate([
+        'from' => ['required', 'integer', 'min:1', 'max:9999'],
+        'to' => ['required', 'integer', 'min:1', 'max:9999', 'gte:from'],
+        'floor' => ['nullable', 'string', 'max:30'],
+        'prefix' => ['nullable', 'string', 'max:40'],
+        'mode' => ['required', Rule::in(['menu', 'limited', 'direct'])],
+        'fixed_request_type' => ['nullable', 'string', Rule::in($requestTypes)],
+        'allowed_request_types' => ['nullable', 'array'],
+        'allowed_request_types.*' => ['string', Rule::in($requestTypes)],
+    ]);
+
+    $mode = $data['mode'];
+
+    if ($mode === 'direct' && empty($data['fixed_request_type'])) {
+        throw ValidationException::withMessages([
+            'fixed_request_type' => 'Selecciona el tipo de solicitud directa.',
+        ]);
+    }
+
+    if ($mode === 'limited' && empty($data['allowed_request_types'])) {
+        throw ValidationException::withMessages([
+            'allowed_request_types' => 'Selecciona al menos una solicitud permitida.',
+        ]);
+    }
+
+    $fixedRequestType = $mode === 'direct'
+        ? $data['fixed_request_type']
+        : null;
+
+    $allowedRequestTypes = $mode === 'limited'
+        ? array_values(array_unique($data['allowed_request_types'] ?? []))
+        : null;
+
+    $created = 0;
+    $createdIds = [];
+
+    for ($number = $data['from']; $number <= $data['to']; $number++) {
+        $label = trim(($data['prefix'] ?: 'Habitación') . ' ' . $number);
+
+        $exists = $hotel->qrPoints()
+            ->where('label', $label)
+            ->exists();
+
+        if ($exists) {
+            continue;
+        }
 
         $point = HotelQrPoint::create([
             'hotel_id' => $hotel->id,
-            'label' => trim($data['label']),
-            'type' => $data['type'],
+            'label' => $label,
+            'type' => 'room',
             'floor' => $data['floor'] ?? null,
             'public_code' => $this->makeUniquePublicCode($hotel),
             'mode' => $mode,
-            'fixed_request_type' => $mode === 'direct' ? ($data['fixed_request_type'] ?? null) : null,
-            'allowed_request_types' => $mode === 'limited' ? array_values($data['allowed_request_types'] ?? []) : null,
+            'fixed_request_type' => $fixedRequestType,
+            'allowed_request_types' => $allowedRequestTypes,
             'active' => true,
         ]);
 
-        $this->audit(
-            request: $request,
-            hotel: $hotel,
-            action: 'sysapp_qr_created',
-            description: 'QR creado desde SysApp.',
-            meta: [
-                'qr_point_id' => $point->id,
-                'label' => $point->label,
-                'public_code' => $point->public_code,
-            ]
-        );
-
-        return back()->with('success', 'Punto QR creado correctamente.');
+        $created++;
+        $createdIds[] = $point->id;
     }
 
-    public function generateRooms(Request $request, Hotel $hotel): RedirectResponse
-    {
-        $data = $request->validate([
-            'from' => ['required', 'integer', 'min:1', 'max:9999'],
-            'to' => ['required', 'integer', 'min:1', 'max:9999', 'gte:from'],
-            'floor' => ['nullable', 'string', 'max:30'],
-            'prefix' => ['nullable', 'string', 'max:40'],
-        ]);
+    $this->audit(
+        request: $request,
+        hotel: $hotel,
+        action: 'sysapp_qr_rooms_generated',
+        description: 'Rango de habitaciones QR generado desde SysApp.',
+        meta: [
+            'from' => $data['from'],
+            'to' => $data['to'],
+            'floor' => $data['floor'] ?? null,
+            'prefix' => $data['prefix'] ?? null,
+            'mode' => $mode,
+            'fixed_request_type' => $fixedRequestType,
+            'allowed_request_types' => $allowedRequestTypes,
+            'created' => $created,
+            'created_ids' => $createdIds,
+        ]
+    );
 
-        $created = 0;
-        $createdIds = [];
+    return back()->with('success', "Habitaciones generadas: {$created}.");
+}
 
-        for ($number = $data['from']; $number <= $data['to']; $number++) {
-            $label = trim(($data['prefix'] ?: 'Habitación') . ' ' . $number);
 
-            $exists = $hotel->qrPoints()
-                ->where('label', $label)
-                ->exists();
+public function update(Request $request, Hotel $hotel, HotelQrPoint $point): RedirectResponse
+{
+    $this->ensurePointBelongsToHotel($hotel, $point);
 
-            if ($exists) {
-                continue;
-            }
+    $payload = $this->validateQrPointPayload($request);
 
-            $point = HotelQrPoint::create([
-                'hotel_id' => $hotel->id,
-                'label' => $label,
-                'type' => 'room',
-                'floor' => $data['floor'] ?? null,
-                'public_code' => $this->makeUniquePublicCode($hotel),
-                'mode' => 'menu',
-                'fixed_request_type' => null,
-                'allowed_request_types' => null,
-                'active' => true,
-            ]);
+    $point->update($payload);
 
-            $created++;
-            $createdIds[] = $point->id;
-        }
+    $this->audit(
+        request: $request,
+        hotel: $hotel,
+        action: 'sysapp_qr_updated',
+        description: 'Punto QR actualizado desde SysApp.',
+        meta: [
+            'qr_point_id' => $point->id,
+            'label' => $point->label,
+            'mode' => $point->mode,
+            'fixed_request_type' => $point->fixed_request_type,
+            'allowed_request_types' => $point->allowed_request_types,
+        ]
+    );
 
-        $this->audit(
-            request: $request,
-            hotel: $hotel,
-            action: 'sysapp_qr_rooms_generated',
-            description: 'Rango de habitaciones QR generado desde SysApp.',
-            meta: [
-                'from' => $data['from'],
-                'to' => $data['to'],
-                'floor' => $data['floor'] ?? null,
-                'prefix' => $data['prefix'] ?? null,
-                'created' => $created,
-                'created_ids' => $createdIds,
-            ]
-        );
-
-        return back()->with('success', "Habitaciones generadas: {$created}.");
-    }
-
+    return back()->with('success', 'Punto QR actualizado correctamente.');
+}
     public function toggle(Request $request, Hotel $hotel, HotelQrPoint $point): RedirectResponse
     {
         $this->ensurePointBelongsToHotel($hotel, $point);
@@ -266,6 +308,47 @@ class SysAppQrPointController extends Controller
 
         return view('sysapp.print.all', compact('hotel', 'qrItems'));
     }
+
+
+    private function validateQrPointPayload(Request $request): array
+{
+    $requestTypes = array_keys(config('hoteldesk.request_types'));
+
+    $data = $request->validate([
+        'label' => ['required', 'string', 'max:120'],
+        'type' => ['required', Rule::in(['room', 'lobby', 'area', 'restaurant', 'parking', 'reception', 'other'])],
+        'floor' => ['nullable', 'string', 'max:30'],
+        'mode' => ['required', Rule::in(['menu', 'limited', 'direct'])],
+        'fixed_request_type' => ['nullable', 'string', Rule::in($requestTypes)],
+        'allowed_request_types' => ['nullable', 'array'],
+        'allowed_request_types.*' => ['string', Rule::in($requestTypes)],
+    ]);
+
+    $mode = $data['mode'];
+
+    if ($mode === 'direct' && empty($data['fixed_request_type'])) {
+        throw ValidationException::withMessages([
+            'fixed_request_type' => 'Selecciona el tipo de solicitud directa.',
+        ]);
+    }
+
+    if ($mode === 'limited' && empty($data['allowed_request_types'])) {
+        throw ValidationException::withMessages([
+            'allowed_request_types' => 'Selecciona al menos una solicitud permitida.',
+        ]);
+    }
+
+    return [
+        'label' => trim($data['label']),
+        'type' => $data['type'],
+        'floor' => $data['floor'] ?? null,
+        'mode' => $mode,
+        'fixed_request_type' => $mode === 'direct' ? $data['fixed_request_type'] : null,
+        'allowed_request_types' => $mode === 'limited'
+            ? array_values(array_unique($data['allowed_request_types'] ?? []))
+            : null,
+    ];
+}
 
     private function makeUniquePublicCode(Hotel $hotel): string
     {

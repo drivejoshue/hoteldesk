@@ -181,7 +181,7 @@
                     <div class="card-body">
                         <div class="alert alert-info">
                             <i class="ti ti-info-circle me-1"></i>
-                            SysApp revisará la solicitud y, si procede, creará el QR para impresión.
+                            SysApp revisará la solicitud y creará el QR para impresión.
                         </div>
 
                         <div class="text-secondary small">

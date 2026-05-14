@@ -11,6 +11,9 @@ use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use SimpleSoftwareIO\QrCode\Facades\QrCode;
 
+use App\Services\HotelDesk\HotelLicenseService;
+use Illuminate\Http\RedirectResponse;
+
 class SysAppHotelController extends Controller
 {
     public function index(Request $request)
@@ -100,9 +103,9 @@ $hotel->save();
             $hotel->save();
         }
 
-        return redirect()
-            ->route('sysapp.hotels.qr-points.index', $hotel)
-            ->with('success', 'Hotel creado correctamente.');
+      return redirect()
+    ->route('sysapp.hotels.edit', $hotel)
+    ->with('success', 'Hotel creado correctamente. Ahora puedes preparar la prueba de 14 días.');
     }
 
     public function edit(Hotel $hotel)
@@ -197,4 +200,63 @@ $hotel->save();
         'qrSvg'
     ));
 }
+
+
+public function activateTrial(Hotel $hotel, HotelLicenseService $licenses): RedirectResponse
+{
+    /*
+    |--------------------------------------------------------------------------
+    | Acceso inicial para demo
+    |--------------------------------------------------------------------------
+    |
+    | Al preparar una prueba desde SysApp, dejamos credenciales iniciales
+    | controladas para que el hotel pueda entrar sin depender de Tinker.
+    |
+    | PIN recepción: 1234
+    | PIN admin:     4321
+    |
+    | El trial NO inicia aquí. Solo queda preparado. El conteo empieza cuando
+    | el hotel acepta los términos desde el panel.
+    |
+    */
+
+    $hotel->forceFill([
+        'pin_hash' => Hash::make('1234'),
+        'admin_pin_hash' => Hash::make('4321'),
+        'admin_pin_changed_at' => null,
+        'admin_failed_attempts' => 0,
+        'admin_locked_until' => null,
+    ])->save();
+
+    $licenses->prepareTrial($hotel->fresh(), 14);
+
+    return back()->with(
+        'success',
+        'Prueba preparada correctamente. PIN recepción: 1234. PIN admin: 4321. El conteo iniciará cuando el hotel acepte los términos al entrar por primera vez.'
+    );
+}
+
+public function activateMonthlyLite(Hotel $hotel, HotelLicenseService $licenses): RedirectResponse
+{
+    $licenses->activateMonthlyLite($hotel);
+
+    return back()->with('success', 'Licencia mensual Lite activada correctamente.');
+}
+
+public function activateAnnualLite(Hotel $hotel, HotelLicenseService $licenses): RedirectResponse
+{
+    $licenses->activateAnnualLite($hotel);
+
+    return back()->with('success', 'Licencia anual Lite activada correctamente.');
+}
+
+public function suspendLicense(Hotel $hotel, HotelLicenseService $licenses): RedirectResponse
+{
+    $licenses->suspend($hotel, 'Suspendido desde SysApp.');
+
+    return back()->with('success', 'Licencia suspendida correctamente.');
+}
+
+
+
 }

@@ -170,7 +170,97 @@
             border: 1px solid #bae6fd;
         }
     </style>
+@php
+    $licenseDays = $hotel->licenseDaysRemaining();
+@endphp
 
+@if($hotel->license_status === 'trial' && $hotel->isLicenseActive())
+    <div class="alert alert-info d-flex align-items-center justify-content-between">
+        <div>
+            <strong>Prueba activa:</strong>
+            le quedan <strong>{{ $licenseDays }}</strong> día(s) de HotelDesk Lite.
+        </div>
+
+        <a href="{{ route('hotel.license.index', $hotel) }}" class="btn btn-sm btn-outline-primary">
+            Ver licencia
+        </a>
+    </div>
+@endif
+
+<div class="alert alert-info d-flex align-items-start gap-3" id="initialPinsNotice" style="display: none;">
+    <div>
+        <i class="ti ti-info-circle fs-2"></i>
+    </div>
+
+    <div class="flex-fill">
+        <h4 class="alert-title mb-1">Acceso inicial del hotel</h4>
+
+        <div class="mb-2">
+            Este panel fue activado con credenciales iniciales para prueba.
+            Por seguridad, recomendamos cambiar los PIN desde el menú.
+        </div>
+
+        <div class="row g-2 mb-2">
+            <div class="col-md-6">
+                <div class="card card-sm">
+                    <div class="card-body py-2">
+                        <div class="text-secondary small">PIN recepción inicial</div>
+                        <div class="fw-bold">1234</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-6">
+                <div class="card card-sm">
+                    <div class="card-body py-2">
+                        <div class="text-secondary small">PIN administrador inicial</div>
+                        <div class="fw-bold">4321</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="d-flex flex-wrap gap-2 align-items-center">
+            <a href="{{ route('hotel.settings.pin.edit', $hotel) }}" class="btn btn-sm btn-primary">
+                <i class="ti ti-key me-1"></i>
+                Cambiar PIN recepción
+            </a>
+
+            <a href="{{ route('hotel.admin-pin.show', $hotel) }}" class="btn btn-sm btn-outline-secondary">
+                <i class="ti ti-shield-lock me-1"></i>
+                Entrar como admin
+            </a>
+
+            <label class="form-check ms-md-auto mb-0">
+                <input class="form-check-input" type="checkbox" id="hideInitialPinsNotice">
+                <span class="form-check-label">No volver a mostrar</span>
+            </label>
+        </div>
+    </div>
+</div>
+
+<script>
+    (function () {
+        const key = 'hoteldesk.hideInitialPinsNotice.{{ $hotel->id }}';
+        const notice = document.getElementById('initialPinsNotice');
+        const check = document.getElementById('hideInitialPinsNotice');
+
+        if (!notice || !check) {
+            return;
+        }
+
+        if (localStorage.getItem(key) !== '1') {
+            notice.style.display = '';
+        }
+
+        check.addEventListener('change', function () {
+            if (this.checked) {
+                localStorage.setItem(key, '1');
+                notice.style.display = 'none';
+            }
+        });
+    })();
+</script>
     <main class="hd-dashboard">
         <section class="hd-kpi-bar">
             <div class="hd-kpi-item">

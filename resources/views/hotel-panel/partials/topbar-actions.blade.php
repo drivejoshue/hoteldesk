@@ -20,6 +20,18 @@
 
 @php
     $isHotelAdmin = session()->get($hotel->adminSessionKey());
+
+    $licenseDays = method_exists($hotel, 'licenseDaysRemaining')
+        ? $hotel->licenseDaysRemaining()
+        : null;
+
+    $licenseLabel = method_exists($hotel, 'licenseLabel')
+        ? $hotel->licenseLabel()
+        : 'Licencia';
+
+    $licenseClass = method_exists($hotel, 'licenseStatusClass')
+        ? $hotel->licenseStatusClass()
+        : 'bg-secondary-lt text-secondary';
 @endphp
 
 <div class="dropdown flex-shrink-0">
@@ -34,6 +46,8 @@
     </button>
 
     <div class="dropdown-menu dropdown-menu-end shadow">
+
+        {{-- Hotel --}}
         <div class="dropdown-header">
             {{ $hotel->name }}
         </div>
@@ -48,6 +62,33 @@
             Historial
         </a>
 
+        <div class="dropdown-divider"></div>
+
+        {{-- Sistema / licencia --}}
+        <div class="dropdown-header">
+            Sistema
+        </div>
+
+        <a class="dropdown-item d-flex align-items-center justify-content-between gap-3"
+           href="{{ route('hotel.license.index', $hotel) }}">
+            <span>
+                <i class="ti ti-shield-check me-2"></i>
+                Licencia
+            </span>
+
+            <span class="badge {{ $licenseClass }}">
+                {{ $licenseLabel }}
+                @if($licenseDays !== null)
+                    · {{ $licenseDays }}d
+                @endif
+            </span>
+        </a>
+
+        <a class="dropdown-item" href="{{ route('hotel.docs.index', $hotel) }}">
+            <i class="ti ti-book me-2"></i>
+            Guía de uso
+        </a>
+
         <a class="dropdown-item" href="{{ route('hotel.settings.pin.edit', $hotel) }}">
             <i class="ti ti-key me-2"></i>
             Cambiar PIN recepción
@@ -55,6 +96,7 @@
 
         <div class="dropdown-divider"></div>
 
+        {{-- Administración --}}
         <div class="dropdown-header">
             Administración
         </div>
@@ -74,10 +116,11 @@
                 <i class="ti ti-plus me-2"></i>
                 Solicitar QR
             </a>
+
             <a class="dropdown-item" href="{{ route('hotel.admin-pin.settings.edit', $hotel) }}">
-    <i class="ti ti-shield-lock me-2"></i>
-    Cambiar PIN admin
-</a>
+                <i class="ti ti-shield-lock me-2"></i>
+                Cambiar PIN admin
+            </a>
 
             <form method="POST" action="{{ route('hotel.admin-pin.logout', $hotel) }}">
                 @csrf
@@ -95,6 +138,7 @@
 
         <div class="dropdown-divider"></div>
 
+        {{-- Salida --}}
         <form method="POST" action="{{ route('hotel.logout', $hotel) }}">
             @csrf
             <button class="dropdown-item text-danger" type="submit">

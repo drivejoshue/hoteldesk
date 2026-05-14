@@ -125,6 +125,46 @@
                             <label class="form-label">Prefijo</label>
                             <input class="form-control" name="prefix" placeholder="Habitación">
                         </div>
+
+                        <div class="col-12">
+    <label class="form-label">Modo para las habitaciones generadas</label>
+    <select class="form-select js-qr-mode" name="mode" data-scope="batch" required>
+        <option value="menu">Menú completo</option>
+        <option value="limited">Menú limitado</option>
+        <option value="direct">Solicitud directa</option>
+    </select>
+
+    <div class="form-hint">
+        Esta configuración se aplicará a todas las habitaciones del rango.
+    </div>
+</div>
+
+<div class="col-12 d-none" data-mode-box="direct" data-scope="batch">
+    <label class="form-label">Solicitud directa</label>
+    <select class="form-select" name="fixed_request_type">
+        <option value="">Seleccionar</option>
+        @foreach($requestTypes as $key => $type)
+            <option value="{{ $key }}">{{ $type['label'] }}</option>
+        @endforeach
+    </select>
+</div>
+
+<div class="col-12 d-none" data-mode-box="limited" data-scope="batch">
+    <label class="form-label">Solicitudes permitidas</label>
+
+    <div class="row g-2">
+        @foreach($requestTypes as $key => $type)
+            <div class="col-12 col-md-6">
+                <label class="form-check border rounded-3 p-2 m-0">
+                    <input class="form-check-input" type="checkbox" name="allowed_request_types[]" value="{{ $key }}">
+                    <span class="form-check-label fw-bold">
+                        {{ $type['icon'] }} {{ $type['label'] }}
+                    </span>
+                </label>
+            </div>
+        @endforeach
+    </div>
+</div>
                     </div>
                 </div>
 
@@ -172,14 +212,14 @@
 
                         <div class="col-12">
                             <label class="form-label">Modo</label>
-                            <select class="form-select" name="mode" id="modeSelect" required>
+                           <select class="form-select js-qr-mode" name="mode" data-scope="manual" required>
                                 <option value="menu">Menú completo</option>
                                 <option value="limited">Menú limitado</option>
                                 <option value="direct">Solicitud directa</option>
                             </select>
                         </div>
 
-                        <div class="col-12" id="directTypeBox">
+                     <div class="col-12 d-none" data-mode-box="direct" data-scope="manual">
                             <label class="form-label">Solicitud directa</label>
                             <select class="form-select" name="fixed_request_type">
                                 <option value="">No aplica</option>
@@ -189,7 +229,7 @@
                             </select>
                         </div>
 
-                        <div class="col-12" id="limitedTypesBox">
+                      <div class="col-12 d-none" data-mode-box="limited" data-scope="manual">
                             <label class="form-label">Solicitudes permitidas para menú limitado</label>
 
                             <div class="row g-2">
@@ -236,6 +276,7 @@
                     <th>Tipo</th>
                     <th>Piso</th>
                     <th>Modo</th>
+                    <th>Opciones</th>
                     <th>Código</th>
                     <th>Estado</th>
                     <th>Historial</th>
@@ -274,6 +315,39 @@
                                 </div>
                             @endif
                         </td>
+                        <td>
+    @if($point->mode === 'menu')
+        <span class="badge bg-blue-lt text-blue">
+            Todas
+        </span>
+    @elseif($point->mode === 'direct')
+        @php
+            $directType = $requestTypes[$point->fixed_request_type] ?? null;
+        @endphp
+
+        <span class="badge bg-green-lt text-green">
+            {{ $directType['label'] ?? $point->fixed_request_type }}
+        </span>
+    @elseif($point->mode === 'limited')
+        @php
+            $allowed = is_array($point->allowed_request_types)
+                ? $point->allowed_request_types
+                : [];
+        @endphp
+
+        <div class="d-flex flex-wrap gap-1">
+            @forelse($allowed as $key)
+                <span class="badge bg-secondary-lt text-secondary">
+                    {{ $requestTypes[$key]['label'] ?? $key }}
+                </span>
+            @empty
+                <span class="text-secondary">Sin opciones</span>
+            @endforelse
+        </div>
+    @else
+        <span class="text-secondary">—</span>
+    @endif
+</td>
 
                         <td>
                             @if($point->active)
@@ -318,6 +392,14 @@
                         <td>
                             <div class="sys-actions">
                                 @if($point->active)
+                                <button class="btn btn-outline-primary btn-sm"
+        type="button"
+        data-bs-toggle="modal"
+        data-bs-target="#editQrPoint{{ $point->id }}">
+    <i class="ti ti-edit me-1"></i>
+    Editar
+</button>
+
                                     <a class="btn btn-success btn-sm"
                                        target="_blank"
                                        href="{{ route('sysapp.hotels.qr-points.print', [$hotel, $point]) }}">
@@ -372,7 +454,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="8">
+                       <td colspan="9">
                             <div class="empty">
                                 <div class="empty-icon">
                                     <i class="ti ti-qrcode"></i>
@@ -395,22 +477,139 @@
             </div>
         @endif
     </div>
+@foreach($points as $point)
+    @php
+        $allowed = is_array($point->allowed_request_types)
+            ? $point->allowed_request_types
+            : [];
+    @endphp
 
+    <div class="modal modal-blur fade" id="editQrPoint{{ $point->id }}" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <form class="modal-content" method="POST" action="{{ route('sysapp.hotels.qr-points.update', [$hotel, $point]) }}">
+                @csrf
+                @method('PUT')
+
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        Editar punto QR
+                    </h5>
+
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                </div>
+
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <label class="form-label">Nombre del punto</label>
+                            <input class="form-control" name="label" required value="{{ $point->label }}">
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label">Tipo</label>
+                            <select class="form-select" name="type" required>
+                                @foreach($typeLabels as $key => $label)
+                                    <option value="{{ $key }}" @selected($point->type === $key)>
+                                        {{ $label }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label">Piso / zona</label>
+                            <input class="form-control" name="floor" value="{{ $point->floor }}" placeholder="1, PB, Terraza">
+                        </div>
+
+                        <div class="col-12">
+                            <label class="form-label">Modo</label>
+                            <select class="form-select js-qr-mode"
+                                    name="mode"
+                                    data-scope="edit-{{ $point->id }}"
+                                    required>
+                                @foreach($modeLabels as $key => $label)
+                                    <option value="{{ $key }}" @selected($point->mode === $key)>
+                                        {{ $label }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+
+                        <div class="col-12 d-none"
+                             data-mode-box="direct"
+                             data-scope="edit-{{ $point->id }}">
+                            <label class="form-label">Solicitud directa</label>
+                            <select class="form-select" name="fixed_request_type">
+                                <option value="">Seleccionar</option>
+                                @foreach($requestTypes as $key => $type)
+                                    <option value="{{ $key }}" @selected($point->fixed_request_type === $key)>
+                                        {{ $type['label'] }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+
+                        <div class="col-12 d-none"
+                             data-mode-box="limited"
+                             data-scope="edit-{{ $point->id }}">
+                            <label class="form-label">Solicitudes permitidas</label>
+
+                            <div class="row g-2">
+                                @foreach($requestTypes as $key => $type)
+                                    <div class="col-12 col-md-6">
+                                        <label class="form-check border rounded-3 p-2 m-0">
+                                            <input class="form-check-input"
+                                                   type="checkbox"
+                                                   name="allowed_request_types[]"
+                                                   value="{{ $key }}"
+                                                   @checked(in_array($key, $allowed, true))>
+
+                                            <span class="form-check-label fw-bold">
+                                                {{ $type['icon'] }} {{ $type['label'] }}
+                                            </span>
+                                        </label>
+                                    </div>
+                                @endforeach
+                            </div>
+                        </div>
+
+                        <div class="col-12">
+                            <div class="alert alert-info mb-0">
+                                <i class="ti ti-info-circle me-1"></i>
+                                Editar el punto no cambia el código QR impreso. Solo cambia el menú o comportamiento que verá el huésped.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">
+                        Cancelar
+                    </button>
+
+                    <button class="btn btn-primary" type="submit">
+                        <i class="ti ti-device-floppy me-1"></i>
+                        Guardar cambios
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+@endforeach
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            const modeSelect = document.getElementById('modeSelect');
-            const directTypeBox = document.getElementById('directTypeBox');
-            const limitedTypesBox = document.getElementById('limitedTypesBox');
+         document.querySelectorAll('.js-qr-mode').forEach((select) => {
+    const syncMode = () => {
+        const scope = select.dataset.scope;
 
-            if (modeSelect && directTypeBox && limitedTypesBox) {
-                function syncMode() {
-                    directTypeBox.classList.toggle('d-none', modeSelect.value !== 'direct');
-                    limitedTypesBox.classList.toggle('d-none', modeSelect.value !== 'limited');
-                }
+        document.querySelectorAll(`[data-mode-box][data-scope="${scope}"]`).forEach((box) => {
+            box.classList.toggle('d-none', box.dataset.modeBox !== select.value);
+        });
+    };
 
-                modeSelect.addEventListener('change', syncMode);
-                syncMode();
-            }
+    select.addEventListener('change', syncMode);
+    syncMode();
+});
 
             document.querySelectorAll('.js-invalidate-qr').forEach((button) => {
                 button.addEventListener('click', async () => {
